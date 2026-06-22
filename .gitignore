@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+local.settings.json
+deploy.zip
+apim_policy_temp.xml
+.python_packages/
+.azure/

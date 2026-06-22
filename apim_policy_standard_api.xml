@@ -1,0 +1,45 @@
+<!-- 
+  Azure API Management Policy for Standard REST API
+  This policy configures APIM to expose the standard /api/quote endpoint.
+  
+  KEY DIFFERENCES FROM MCP GATEWAY:
+  1. No special headers are required for Server-Sent Events (SSE).
+  2. The `buffer-response` is true (default), which allows APIM to buffer and inspect the entire JSON response before sending it to the client. This is good for standard APIs but breaks SSE.
+-->
+<policies>
+    <inbound>
+        <base />
+        
+        <!-- Enable Cross-Origin Resource Sharing (CORS) for all domains (open demo) -->
+        <cors allow-credentials="true">
+            <allowed-origins>
+                <origin>*</origin>
+            </allowed-origins>
+            <allowed-methods>
+                <method>GET</method>
+                <method>POST</method>
+                <method>OPTIONS</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>*</header>
+            </allowed-headers>
+        </cors>
+
+        <!-- Rate Limiting: Prevent abuse of the open endpoint -->
+        <!-- Allows 100 calls per minute per IP address -->
+        <rate-limit-by-key calls="100" renewal-period="60" counter-key="@(context.Request.IpAddress)" />
+
+        <set-backend-service base-url="https://<YOUR_CONTAINER_APP_URL>" />
+    </inbound>
+    <backend>
+        <base />
+        <!-- Standard request forwarding. Buffering is allowed and encouraged for standard REST APIs. -->
+        <forward-request timeout="120" />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

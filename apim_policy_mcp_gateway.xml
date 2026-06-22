@@ -1,0 +1,62 @@
+<!-- 
+  Azure API Management Policy for MCP Gateway
+  This policy configures APIM to expose the MCP SSE (/mcp/sse) and messaging endpoints.
+  
+  KEY DIFFERENCES FROM STANDARD API:
+  1. `buffer-response="false"` in `<forward-request>`: Crucial for MCP Server-Sent Events. If true, APIM waits for the stream to close before sending data, breaking real-time events.
+  2. `Cache-Control: no-cache` and `Connection: keep-alive` headers are forced.
+  3. `timeout` is increased to 300+ seconds to keep the SSE connection alive longer.
+-->
+<policies>
+    <inbound>
+        <base />
+        
+        <!-- Enable Cross-Origin Resource Sharing (CORS) for all domains (open demo) -->
+        <cors allow-credentials="true">
+            <allowed-origins>
+                <origin>*</origin>
+            </allowed-origins>
+            <allowed-methods>
+                <method>GET</method>
+                <method>POST</method>
+                <method>OPTIONS</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>*</header>
+            </allowed-headers>
+        </cors>
+
+        <!-- Rate Limiting: Prevent abuse of the open endpoint -->
+        <rate-limit-by-key calls="100" renewal-period="60" counter-key="@(context.Request.IpAddress)" />
+
+        <!-- 
+          SSE DIFFERENCE: Disable caching and force keep-alive connection
+        -->
+        <set-header name="Cache-Control" exists-action="override">
+            <value>no-cache</value>
+        </set-header>
+        <set-header name="Connection" exists-action="override">
+            <value>keep-alive</value>
+        </set-header>
+
+        <set-backend-service base-url="https://<YOUR_CONTAINER_APP_URL>" />
+    </inbound>
+    <backend>
+        <base />
+        <!-- 
+          SSE DIFFERENCE: buffer-response="false" is mandatory for SSE.
+          Timeout is extended since SSE connections are meant to stay open.
+        -->
+        <forward-request timeout="300" buffer-request-body="true" buffer-response="false" />
+    </backend>
+    <outbound>
+        <base />
+        <!-- SSE DIFFERENCE: Ensure response headers don't cache the stream -->
+        <set-header name="Cache-Control" exists-action="override">
+            <value>no-cache</value>
+        </set-header>
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
