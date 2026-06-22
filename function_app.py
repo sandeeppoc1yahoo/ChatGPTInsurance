@@ -32,7 +32,7 @@ def get_quote(req: func.HttpRequest) -> func.HttpResponse:
             "traveler_age": age,
             "duration_days": duration,
             "coverage_level": coverage,
-            "notes": "Quick estimate via Azure Functions + APIM Gateway."
+            "notes": "Quick estimate via Azure Functions behind APIM."
         }
     }
     return func.HttpResponse(json.dumps(result), mimetype="application/json", status_code=200)
