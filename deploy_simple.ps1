@@ -6,7 +6,8 @@
   Creates (or updates) a resource group, Azure Function (Python, free consumption plan),
   and APIM Consumption gateway. No Docker, no Container Apps, no App Service VM needed.
 
-  Public test URL: https://<apim-name>.azure-api.net/api/quote
+  Public UI URL:  https://<apim-name>.azure-api.net/quote/ui
+  Public API URL: https://<apim-name>.azure-api.net/quote/quote
 
 .EXAMPLE
   .\deploy_simple.ps1
@@ -89,8 +90,7 @@ if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 $deployDir = Join-Path $env:TEMP "quickquote-deploy"
 if (Test-Path $deployDir) { Remove-Item $deployDir -Recurse -Force }
 New-Item -ItemType Directory -Path $deployDir | Out-Null
-Copy-Item "function_app.py", "host.json" -Destination $deployDir
-Copy-Item "requirements-functions.txt" -Destination (Join-Path $deployDir "requirements.txt")
+Copy-Item "function_app.py", "host.json", "index.html", "requirements.txt" -Destination $deployDir
 Compress-Archive -Path "$deployDir\*" -DestinationPath $zipPath -Force
 az functionapp deployment source config-zip `
     --resource-group $ResourceGroup `
@@ -121,9 +121,9 @@ if (-not (Test-AzResource { az apim api show --service-name $ApimName --resource
         --service-name $ApimName `
         --resource-group $ResourceGroup `
         --api-id $ApiId `
-        --path "api" `
+        --path "quote" `
         --display-name "Quick Quote Travel Insurance" `
-        --service-url $FunctionUrl `
+        --service-url "$FunctionUrl/api" `
         --protocols https `
         --subscription-required false `
         -o none
@@ -137,26 +137,84 @@ if (-not (Test-AzResource { az apim api show --service-name $ApimName --resource
         --method POST `
         --url-template "/quote" `
         -o none
+
+    az apim api operation create `
+        --service-name $ApimName `
+        --resource-group $ResourceGroup `
+        --api-id $ApiId `
+        --operation-id "quote-ui" `
+        --display-name "Quote Web UI" `
+        --method GET `
+        --url-template "/ui" `
+        -o none
+
+    az apim api operation create `
+        --service-name $ApimName `
+        --resource-group $ResourceGroup `
+        --api-id $ApiId `
+        --operation-id "openapi-spec" `
+        --display-name "OpenAPI Schema for ChatGPT" `
+        --method GET `
+        --url-template "/openapi.json" `
+        -o none
 } else {
     az apim api update `
         --service-name $ApimName `
         --resource-group $ResourceGroup `
         --api-id $ApiId `
-        --service-url $FunctionUrl `
+        --path "quote" `
+        --service-url "$FunctionUrl/api" `
         -o none
 }
 
-$policyFile = Join-Path $env:TEMP "apim_policy_deploy.xml"
-(Get-Content ".\apim_policy_simple.xml" -Raw) -replace "<BACKEND_URL>", "$FunctionName.azurewebsites.net" | Set-Content $policyFile
-az apim api policy create `
+if (-not (Test-AzResource { az apim api operation show --service-name $ApimName --resource-group $ResourceGroup --api-id $ApiId --operation-id "quote-ui" -o none })) {
+    az apim api operation create `
+        --service-name $ApimName `
+        --resource-group $ResourceGroup `
+        --api-id $ApiId `
+        --operation-id "quote-ui" `
+        --display-name "Quote Web UI" `
+        --method GET `
+        --url-template "/ui" `
+        -o none
+}
+
+if (-not (Test-AzResource { az apim api operation show --service-name $ApimName --resource-group $ResourceGroup --api-id $ApiId --operation-id "openapi-spec" -o none })) {
+    az apim api operation create `
+        --service-name $ApimName `
+        --resource-group $ResourceGroup `
+        --api-id $ApiId `
+        --operation-id "openapi-spec" `
+        --display-name "OpenAPI Schema for ChatGPT" `
+        --method GET `
+        --url-template "/openapi.json" `
+        -o none
+}
+
+if (-not (Test-AzResource { az apim product show --service-name $ApimName --resource-group $ResourceGroup --product-id "unlimited" -o none })) {
+    az apim product create `
+        --service-name $ApimName `
+        --resource-group $ResourceGroup `
+        --product-id "unlimited" `
+        --product-name "Unlimited" `
+        --description "Open access for testing" `
+        --subscription-required false `
+        -o none
+}
+
+az apim product api add `
     --service-name $ApimName `
     --resource-group $ResourceGroup `
+    --product-id "unlimited" `
     --api-id $ApiId `
-    --value-path $policyFile `
-    -o none
-Remove-Item $policyFile -Force -ErrorAction SilentlyContinue
+    -o none 2>$null
 
-$ApimUrl = "https://$ApimName.azure-api.net/api/quote"
+Write-Host "       Waiting 30s for APIM gateway to pick up the API..." -ForegroundColor Gray
+Start-Sleep -Seconds 30
+
+$ApimUiUrl = "https://$ApimName.azure-api.net/quote/ui"
+$ApimUrl = "https://$ApimName.azure-api.net/quote/quote"
+$OpenApiUrl = "https://$ApimName.azure-api.net/quote/openapi.json"
 $testBody = '{"destination":"Japan","age":35,"duration_days":10,"coverage_level":"Standard"}'
 
 Write-Host ""
@@ -164,8 +222,15 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host " DEPLOYMENT COMPLETE" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "Public URL (use this to test):" -ForegroundColor White
+Write-Host "Open in your browser (Web UI):" -ForegroundColor White
+Write-Host "  $ApimUiUrl" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "API endpoint (POST JSON):" -ForegroundColor White
 Write-Host "  $ApimUrl" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "ChatGPT Actions schema (import this URL):" -ForegroundColor White
+Write-Host "  $OpenApiUrl" -ForegroundColor Cyan
+Write-Host "  Run: .\setup_chatgpt.ps1 -ApimName $ApimName" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Test with PowerShell:" -ForegroundColor White
 Write-Host "  Invoke-RestMethod -Uri '$ApimUrl' -Method POST -ContentType 'application/json' -Body '$testBody'" -ForegroundColor Gray

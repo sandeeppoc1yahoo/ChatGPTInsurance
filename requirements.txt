@@ -1,4 +1,1 @@
-fastapi
-uvicorn[standard]
-sse-starlette
-mcp
+azure-functions

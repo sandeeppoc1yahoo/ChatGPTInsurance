@@ -1,0 +1,116 @@
+﻿{
+    "openapi":  "3.1.0",
+    "info":  {
+                 "title":  "Quick Quote Travel Insurance API",
+                 "description":  "Returns an estimated travel insurance quote. Use when the user asks for a travel insurance price, quote, or cost estimate.",
+                 "version":  "1.0.0"
+             },
+    "servers":  [
+                    {
+                        "url":  "https://qqtest0622-apim.azure-api.net/quote",
+                        "description":  "Azure API Management gateway"
+                    }
+                ],
+    "paths":  {
+                  "/quote":  {
+                                 "post":  {
+                                              "operationId":  "getTravelInsuranceQuote",
+                                              "summary":  "Get a travel insurance quote",
+                                              "description":  "Calculates an estimated travel insurance premium in USD. Extract destination, age, duration_days, and coverage_level from the conversation. If coverage is not specified, use Standard.",
+                                              "requestBody":  {
+                                                                  "required":  true,
+                                                                  "content":  {
+                                                                                  "application/json":  {
+                                                                                                           "schema":  {
+                                                                                                                          "type":  "object",
+                                                                                                                          "required":  [
+                                                                                                                                           "destination",
+                                                                                                                                           "age",
+                                                                                                                                           "duration_days",
+                                                                                                                                           "coverage_level"
+                                                                                                                                       ],
+                                                                                                                          "properties":  {
+                                                                                                                                             "destination":  {
+                                                                                                                                                                 "type":  "string",
+                                                                                                                                                                 "description":  "Country or region being visited (e.g. Japan, Europe, USA)"
+                                                                                                                                                             },
+                                                                                                                                             "age":  {
+                                                                                                                                                         "type":  "integer",
+                                                                                                                                                         "description":  "Age of the traveler in years",
+                                                                                                                                                         "minimum":  1,
+                                                                                                                                                         "maximum":  120
+                                                                                                                                                     },
+                                                                                                                                             "duration_days":  {
+                                                                                                                                                                   "type":  "integer",
+                                                                                                                                                                   "description":  "Total trip length in days",
+                                                                                                                                                                   "minimum":  1,
+                                                                                                                                                                   "maximum":  365
+                                                                                                                                                               },
+                                                                                                                                             "coverage_level":  {
+                                                                                                                                                                    "type":  "string",
+                                                                                                                                                                    "description":  "Basic (budget), Standard (recommended), or Premium (comprehensive)",
+                                                                                                                                                                    "enum":  [
+                                                                                                                                                                                 "Basic",
+                                                                                                                                                                                 "Standard",
+                                                                                                                                                                                 "Premium"
+                                                                                                                                                                             ]
+                                                                                                                                                                }
+                                                                                                                                         }
+                                                                                                                      },
+                                                                                                           "example":  {
+                                                                                                                           "destination":  "Japan",
+                                                                                                                           "age":  35,
+                                                                                                                           "duration_days":  10,
+                                                                                                                           "coverage_level":  "Standard"
+                                                                                                                       }
+                                                                                                       }
+                                                                              }
+                                                              },
+                                              "responses":  {
+                                                                "200":  {
+                                                                            "description":  "Quote calculated successfully",
+                                                                            "content":  {
+                                                                                            "application/json":  {
+                                                                                                                     "schema":  {
+                                                                                                                                    "type":  "object",
+                                                                                                                                    "properties":  {
+                                                                                                                                                       "status":  {
+                                                                                                                                                                      "type":  "string"
+                                                                                                                                                                  },
+                                                                                                                                                       "quote":  {
+                                                                                                                                                                     "type":  "object",
+                                                                                                                                                                     "properties":  {
+                                                                                                                                                                                        "estimated_cost_usd":  {
+                                                                                                                                                                                                                   "type":  "number",
+                                                                                                                                                                                                                   "description":  "Estimated premium in US dollars"
+                                                                                                                                                                                                               },
+                                                                                                                                                                                        "destination":  {
+                                                                                                                                                                                                            "type":  "string"
+                                                                                                                                                                                                        },
+                                                                                                                                                                                        "traveler_age":  {
+                                                                                                                                                                                                             "type":  "integer"
+                                                                                                                                                                                                         },
+                                                                                                                                                                                        "duration_days":  {
+                                                                                                                                                                                                              "type":  "integer"
+                                                                                                                                                                                                          },
+                                                                                                                                                                                        "coverage_level":  {
+                                                                                                                                                                                                               "type":  "string"
+                                                                                                                                                                                                           },
+                                                                                                                                                                                        "notes":  {
+                                                                                                                                                                                                      "type":  "string"
+                                                                                                                                                                                                  }
+                                                                                                                                                                                    }
+                                                                                                                                                                 }
+                                                                                                                                                   }
+                                                                                                                                }
+                                                                                                                 }
+                                                                                        }
+                                                                        },
+                                                                "400":  {
+                                                                            "description":  "Invalid request body"
+                                                                        }
+                                                            }
+                                          }
+                             }
+              }
+}

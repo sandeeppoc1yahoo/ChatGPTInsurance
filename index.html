@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quick Quote Travel Insurance</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f4c75 0%, #1b6ca8 50%, #3282b8 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      max-width: 480px;
+      width: 100%;
+      padding: 36px;
+    }
+    h1 { font-size: 1.5rem; color: #0f4c75; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 28px; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: #333; margin-bottom: 6px; }
+    .field { margin-bottom: 18px; }
+    input, select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #d0d7de;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus { outline: none; border-color: #1b6ca8; }
+    button {
+      width: 100%;
+      padding: 13px;
+      background: #0f4c75;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+    button:hover { background: #1b6ca8; }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+    #result {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 10px;
+      display: none;
+    }
+    #result.success { background: #ecfdf5; border: 1.5px solid #6ee7b7; display: block; }
+    #result.error { background: #fef2f2; border: 1.5px solid #fca5a5; display: block; }
+    .price { font-size: 2rem; font-weight: 700; color: #0f4c75; margin: 8px 0; }
+    .detail { font-size: 0.9rem; color: #555; line-height: 1.7; }
+    .badge {
+      display: inline-block;
+      background: #dbeafe;
+      color: #1e40af;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge">Azure APIM</span>
+    <h1>Quick Quote Travel Insurance</h1>
+    <p class="subtitle">Enter your trip details to get an instant estimate.</p>
+
+    <form id="quoteForm">
+      <div class="field">
+        <label for="destination">Destination</label>
+        <input id="destination" type="text" placeholder="e.g. Japan, Europe, USA" required>
+      </div>
+      <div class="field">
+        <label for="age">Traveler Age</label>
+        <input id="age" type="number" min="1" max="120" value="35" required>
+      </div>
+      <div class="field">
+        <label for="duration_days">Trip Duration (days)</label>
+        <input id="duration_days" type="number" min="1" max="365" value="10" required>
+      </div>
+      <div class="field">
+        <label for="coverage_level">Coverage Level</label>
+        <select id="coverage_level">
+          <option value="Basic">Basic</option>
+          <option value="Standard" selected>Standard</option>
+          <option value="Premium">Premium</option>
+        </select>
+      </div>
+      <button type="submit" id="submitBtn">Get Quote</button>
+    </form>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    document.getElementById("quoteForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("submitBtn");
+      const result = document.getElementById("result");
+      btn.disabled = true;
+      btn.textContent = "Calculating...";
+      result.className = "";
+
+      const body = {
+        destination: document.getElementById("destination").value,
+        age: parseInt(document.getElementById("age").value),
+        duration_days: parseInt(document.getElementById("duration_days").value),
+        coverage_level: document.getElementById("coverage_level").value
+      };
+
+      try {
+        const res = await fetch("/quote/quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || "Request failed");
+
+        const q = data.quote;
+        result.className = "success";
+        result.innerHTML = `
+          <div class="price">$${q.estimated_cost_usd.toFixed(2)} USD</div>
+          <div class="detail">
+            <strong>Destination:</strong> ${q.destination}<br>
+            <strong>Age:</strong> ${q.traveler_age}<br>
+            <strong>Duration:</strong> ${q.duration_days} days<br>
+            <strong>Coverage:</strong> ${q.coverage_level}<br>
+            <em>${q.notes}</em>
+          </div>`;
+      } catch (err) {
+        result.className = "error";
+        result.innerHTML = `<strong>Error:</strong> ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Get Quote";
+      }
+    });
+  </script>
+</body>
+</html>
